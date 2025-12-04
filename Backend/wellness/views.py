@@ -9,8 +9,8 @@ import traceback
 
 from .models import WellnessGoal, DailyGoalLog, PreventiveCareReminder, HealthTip
 from .serializers import (
-    WellnessGoalSerializer, WellnessGoalCreateSerializer, LogGoalProgressSerializer,
-    PreventiveCareReminderSerializer, HealthTipSerializer
+    WellnessGoalSerializer, WellnessGoalCreateSerializer, WellnessGoalUpdateSerializer,
+    LogGoalProgressSerializer, PreventiveCareReminderSerializer, HealthTipSerializer
 )
 
 
@@ -38,12 +38,69 @@ class WellnessGoalListCreateView(generics.ListCreateAPIView):
         return queryset
 
 
-class WellnessGoalDetailView(generics.RetrieveUpdateDestroyAPIView):
+class WellnessGoalDetailView(APIView):
+    """Retrieve, update or delete a wellness goal"""
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = WellnessGoalSerializer
     
-    def get_queryset(self):
-        return WellnessGoal.objects.filter(user=self.request.user)
+    def get_object(self, pk, user):
+        try:
+            return WellnessGoal.objects.get(pk=pk, user=user)
+        except WellnessGoal.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        goal = self.get_object(pk, request.user)
+        if not goal:
+            return Response({'error': 'Goal not found'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = WellnessGoalSerializer(goal)
+        return Response(serializer.data)
+    
+    def patch(self, request, pk):
+        try:
+            goal = self.get_object(pk, request.user)
+            if not goal:
+                return Response({'error': 'Goal not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Update fields manually to avoid serializer issues with Decimal128
+            data = request.data
+            print(f"Updating goal {pk} with data: {data}")
+            
+            # IMPORTANT: Convert ALL numeric fields to float before saving
+            # This fixes MongoDB Decimal128 incompatibility
+            goal.target_value = float(goal.target_value) if goal.target_value else 0
+            goal.current_value = float(goal.current_value) if goal.current_value else 0
+            
+            if 'title' in data:
+                goal.title = data['title']
+            if 'target_value' in data:
+                goal.target_value = float(data['target_value'])
+            if 'unit' in data:
+                goal.unit = data['unit']
+            if 'current_value' in data:
+                goal.current_value = float(data['current_value'])
+            
+            goal.save()
+            
+            serializer = WellnessGoalSerializer(goal)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error updating goal: {e}")
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def put(self, request, pk):
+        return self.patch(request, pk)
+    
+    def delete(self, request, pk):
+        try:
+            goal = self.get_object(pk, request.user)
+            if not goal:
+                return Response({'error': 'Goal not found'}, status=status.HTTP_404_NOT_FOUND)
+            goal.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            print(f"Error deleting goal: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class LogGoalProgressView(APIView):
@@ -64,8 +121,9 @@ class LogGoalProgressView(APIView):
             # Create log entry
             DailyGoalLog.objects.create(goal=goal, value=value, notes=notes)
             
-            # Update goal current value
-            goal.current_value += value
+            # Update goal current value - convert to float for MongoDB Decimal128 compatibility
+            current = float(goal.current_value) if goal.current_value else 0
+            goal.current_value = current + float(value)
             goal.save()
             
             return Response(WellnessGoalSerializer(goal).data)
@@ -81,45 +139,59 @@ class TodayGoalsView(APIView):
             today = timezone.now().date()
             goals = WellnessGoal.objects.filter(user=request.user, date=today)
             
-            # Create default goals if none exist for today
+            # If no goals for today, check for recurring goals and create them
             if not goals.exists():
-                default_goals = [
-                    {
-                        'goal_type': 'steps',
-                        'title': 'Daily Steps',
-                        'target_value': 6000,
-                        'unit': 'steps',
-                    },
-                    {
-                        'goal_type': 'active_time',
-                        'title': 'Active Time',
-                        'target_value': 60,
-                        'unit': 'mins',
-                    },
-                    {
-                        'goal_type': 'sleep',
-                        'title': 'Sleep',
-                        'target_value': 8,
-                        'unit': 'hours',
-                    },
-                ]
-                for goal_data in default_goals:
-                    try:
-                        WellnessGoal.objects.get_or_create(
-                            user=request.user,
-                            goal_type=goal_data['goal_type'],
-                            date=today,
-                            defaults={
-                                'title': goal_data['title'],
-                                'target_value': goal_data['target_value'],
-                                'current_value': 0,
-                                'unit': goal_data['unit'],
-                            }
-                        )
-                    except Exception as e:
-                        print(f"Error creating goal: {e}")
-                        continue
+                # First, check for recurring goals from previous days
+                recurring_goals = WellnessGoal.objects.filter(
+                    user=request.user,
+                    is_recurring=True
+                ).exclude(date=today).order_by('-date')
+                
+                # Get unique goal types from recurring goals (most recent for each type)
+                seen_types = set()
+                for goal in recurring_goals:
+                    if goal.goal_type not in seen_types:
+                        seen_types.add(goal.goal_type)
+                        try:
+                            WellnessGoal.objects.get_or_create(
+                                user=request.user,
+                                goal_type=goal.goal_type,
+                                date=today,
+                                defaults={
+                                    'title': goal.title,
+                                    'target_value': float(goal.target_value),
+                                    'current_value': 0.0,
+                                    'unit': goal.unit,
+                                    'is_recurring': True,
+                                }
+                            )
+                        except Exception as e:
+                            print(f"Error creating recurring goal: {e}")
+                            continue
+                
+                # If still no goals, create default goals
                 goals = WellnessGoal.objects.filter(user=request.user, date=today)
+                if not goals.exists():
+                    default_goal_types = ['steps', 'active_time', 'sleep']
+                    for goal_type in default_goal_types:
+                        try:
+                            defaults = WellnessGoal.DEFAULT_GOALS.get(goal_type, {})
+                            WellnessGoal.objects.get_or_create(
+                                user=request.user,
+                                goal_type=goal_type,
+                                date=today,
+                                defaults={
+                                    'title': defaults.get('title', goal_type.replace('_', ' ').title()),
+                                    'target_value': float(defaults.get('target_value', 0)),
+                                    'current_value': 0.0,
+                                    'unit': defaults.get('unit', ''),
+                                    'is_recurring': True,  # Default goals are recurring
+                                }
+                            )
+                        except Exception as e:
+                            print(f"Error creating default goal: {e}")
+                            continue
+                    goals = WellnessGoal.objects.filter(user=request.user, date=today)
             
             serializer = WellnessGoalSerializer(goals, many=True)
             return Response(serializer.data)

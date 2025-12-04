@@ -12,7 +12,7 @@ const Register = () => {
     password_confirm: '',
     first_name: '',
     last_name: '',
-    role: 'patient',
+    role: 'patient', // Fixed as patient - providers are added by admin
     phone: '',
     data_consent: false,
   });
@@ -77,8 +77,8 @@ const Register = () => {
             <span className="auth-logo__icon">🏥</span>
           </div>
           
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join our healthcare portal to manage your wellness</p>
+          <h1 className="auth-title">Create Your Patient Account</h1>
+          <p className="auth-subtitle">Join our healthcare portal to manage your wellness journey</p>
           
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="auth-form__row">
@@ -139,34 +139,6 @@ const Register = () => {
               />
             </div>
             
-            <div className="input-group">
-              <label className="input-label">I am a:</label>
-              <div className="role-selector">
-                <label className={`role-option ${formData.role === 'patient' ? 'role-option--selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="role"
-                    value="patient"
-                    checked={formData.role === 'patient'}
-                    onChange={handleChange}
-                  />
-                  <span className="role-option__icon">👤</span>
-                  <span className="role-option__label">Patient</span>
-                </label>
-                <label className={`role-option ${formData.role === 'provider' ? 'role-option--selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="role"
-                    value="provider"
-                    checked={formData.role === 'provider'}
-                    onChange={handleChange}
-                  />
-                  <span className="role-option__icon">👨‍⚕️</span>
-                  <span className="role-option__label">Healthcare Provider</span>
-                </label>
-              </div>
-            </div>
-            
             <div className="consent-checkbox">
               <label className="checkbox-label">
                 <input
@@ -194,6 +166,10 @@ const Register = () => {
           <p className="auth-signup-text">
             Already have an account? <Link to="/login" className="auth-link">Login here</Link>
           </p>
+          
+          <p className="auth-provider-note">
+            Are you a healthcare provider? <Link to="/contact" className="auth-link">Contact us</Link> to get access.
+          </p>
         </div>
       </div>
     </div>
@@ -201,4 +177,3 @@ const Register = () => {
 };
 
 export default Register;
-

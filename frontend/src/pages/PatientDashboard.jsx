@@ -35,7 +35,6 @@ const PatientDashboard = () => {
     } catch (err) {
       console.error('Dashboard fetch error:', err);
       setError('Unable to load dashboard data. Please try again.');
-      // Set empty arrays instead of mock data
       setGoals([]);
       setReminders([]);
       setHealthTip({
@@ -90,9 +89,13 @@ const PatientDashboard = () => {
     );
   };
 
-  const handleLogProgress = async (goalId, value) => {
+  const handleLogProgress = async (goalId, inputElement) => {
+    const value = inputElement.value;
+    if (!value) return;
+    
     try {
       await wellnessAPI.logProgress(goalId, { value: parseFloat(value) });
+      inputElement.value = '';
       // Refresh goals after logging
       const goalsRes = await wellnessAPI.getTodayGoals();
       setGoals(goalsRes.data);
@@ -147,10 +150,10 @@ const PatientDashboard = () => {
                     
                     {goal.goal_type === 'sleep' ? (
                       <>
-                        <div className="goal-card__sleep-time">
-                          {goal.extra_data?.sleep_start || '--:--'} - {goal.extra_data?.sleep_end || '--:--'}
-                        </div>
                         {renderSleepIndicator(goal)}
+                        <div className="goal-card__progress-text">
+                          {goal.current_value || 0} of {goal.target_value} hours logged
+                        </div>
                       </>
                     ) : (
                       <ProgressBar 
@@ -168,19 +171,29 @@ const PatientDashboard = () => {
                       </div>
                     )}
 
-                    {/* Quick log input */}
+                    {/* Quick log input with button */}
                     <div className="goal-card__log">
                       <input
                         type="number"
                         placeholder={`Add ${goal.unit}`}
                         className="goal-card__input"
+                        id={`log-input-${goal.id}`}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && e.target.value) {
-                            handleLogProgress(goal.id, e.target.value);
-                            e.target.value = '';
+                            handleLogProgress(goal.id, e.target);
                           }
                         }}
                       />
+                      <Button 
+                        variant="secondary" 
+                        size="small"
+                        onClick={() => {
+                          const input = document.getElementById(`log-input-${goal.id}`);
+                          handleLogProgress(goal.id, input);
+                        }}
+                      >
+                        Log
+                      </Button>
                     </div>
                   </Card>
                 ))}
@@ -250,16 +263,16 @@ const PatientDashboard = () => {
                     size="small"
                   />
                   
-                  {goal.goal_type === 'active_time' && (
+                  {goal.goal_type === 'active_time' && goal.extra_data && (
                     <div className="summary-item__meta">
-                      {goal.extra_data?.calories || 0} Kcal | {goal.extra_data?.distance || 0}km
+                      {goal.extra_data.calories || 0} Kcal | {goal.extra_data.distance || 0}km
                     </div>
                   )}
                   
-                  {goal.goal_type === 'sleep' && goal.extra_data && (
+                  {goal.goal_type === 'sleep' && (
                     <>
                       <div className="summary-item__meta">
-                        {goal.extra_data.sleep_start || '--:--'} - {goal.extra_data.sleep_end || '--:--'}
+                        {goal.current_value || 0} hours logged
                       </div>
                       {renderSleepIndicator(goal)}
                     </>

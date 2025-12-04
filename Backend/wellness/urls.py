@@ -7,17 +7,17 @@ from .views import (
 )
 
 urlpatterns = [
-    # Goals - specific paths MUST come before generic <int:pk> patterns
+    # Goals - specific paths MUST come before generic pk patterns
     path('goals/today/', TodayGoalsView.as_view(), name='today_goals'),
     path('goals/weekly/', WeeklyProgressView.as_view(), name='weekly_progress'),
     path('goals/', WellnessGoalListCreateView.as_view(), name='goals_list'),
-    path('goals/<int:pk>/', WellnessGoalDetailView.as_view(), name='goal_detail'),
-    path('goals/<int:goal_id>/log/', LogGoalProgressView.as_view(), name='log_goal_progress'),
+    path('goals/<pk>/', WellnessGoalDetailView.as_view(), name='goal_detail'),
+    path('goals/<goal_id>/log/', LogGoalProgressView.as_view(), name='log_goal_progress'),
     
     # Reminders - specific paths before generic patterns
     path('reminders/upcoming/', UpcomingRemindersView.as_view(), name='upcoming_reminders'),
     path('reminders/', PreventiveCareReminderListCreateView.as_view(), name='reminders_list'),
-    path('reminders/<int:pk>/', PreventiveCareReminderDetailView.as_view(), name='reminder_detail'),
+    path('reminders/<pk>/', PreventiveCareReminderDetailView.as_view(), name='reminder_detail'),
     
     # Health Tips
     path('health-tip/', HealthTipOfDayView.as_view(), name='health_tip'),

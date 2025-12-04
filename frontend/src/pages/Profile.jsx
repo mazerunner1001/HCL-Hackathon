@@ -4,6 +4,7 @@ import { authAPI } from '../services/api';
 import Card from '../components/common/Card';
 import Input from '../components/common/Input';
 import Button from '../components/common/Button';
+import ConfirmModal from '../components/common/ConfirmModal';
 import './Profile.css';
 
 const Profile = () => {
@@ -13,6 +14,7 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [activeTab, setActiveTab] = useState('personal');
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -81,8 +83,12 @@ const Profile = () => {
     setMessage({ type: '', text: '' });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    setShowUpdateModal(true);
+  };
+
+  const confirmUpdate = async () => {
     setSaving(true);
     setMessage({ type: '', text: '' });
 
@@ -311,9 +317,20 @@ const Profile = () => {
           </Button>
         </div>
       </form>
+
+      {/* Update Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        onConfirm={confirmUpdate}
+        title="Update Profile"
+        message="Are you sure you want to save these changes to your profile?"
+        confirmText="Save Changes"
+        cancelText="Cancel"
+        variant="info"
+      />
     </div>
   );
 };
 
 export default Profile;
-

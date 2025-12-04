@@ -4,6 +4,7 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Input from '../components/common/Input';
 import ProgressBar from '../components/common/ProgressBar';
+import ConfirmModal from '../components/common/ConfirmModal';
 import './Goals.css';
 
 const Goals = () => {
@@ -17,7 +18,13 @@ const Goals = () => {
     target_value: '',
     unit: 'steps',
     date: new Date().toISOString().split('T')[0],
+    is_recurring: true, // Default to recurring for daily goals
   });
+  
+  // Modal states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [goalToDelete, setGoalToDelete] = useState(null);
 
   useEffect(() => {
     fetchGoals();
@@ -42,30 +49,58 @@ const Goals = () => {
       target_value: '',
       unit: 'steps',
       date: new Date().toISOString().split('T')[0],
+      is_recurring: true,
     });
     setEditingGoal(null);
     setShowForm(false);
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setFormData({ 
+      ...formData, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (editingGoal) {
+      // Show confirmation modal for update
+      setShowUpdateModal(true);
+    } else {
+      // Create new goal directly
+      await createGoal();
+    }
+  };
+
+  const createGoal = async () => {
     try {
-      if (editingGoal) {
-        // Update existing goal
-        await wellnessAPI.updateGoal(editingGoal.id, formData);
-      } else {
-        // Create new goal
-        await wellnessAPI.createGoal(formData);
-      }
+      await wellnessAPI.createGoal(formData);
       await fetchGoals();
       resetForm();
     } catch (error) {
-      console.error('Error saving goal:', error);
+      console.error('Error creating goal:', error);
+      alert('Failed to create goal. Please try again.');
+    }
+  };
+
+  const confirmUpdate = async () => {
+    try {
+      const updateData = {
+        title: formData.title,
+        target_value: formData.target_value,
+        unit: formData.unit,
+        is_recurring: formData.is_recurring,
+      };
+      console.log('Updating goal:', editingGoal.id, updateData);
+      await wellnessAPI.updateGoal(editingGoal.id, updateData);
+      await fetchGoals();
+      resetForm();
+    } catch (error) {
+      console.error('Error updating goal:', error);
+      alert('Failed to update goal. Please try again.');
     }
   };
 
@@ -77,15 +112,22 @@ const Goals = () => {
       target_value: goal.target_value,
       unit: goal.unit,
       date: goal.date,
+      is_recurring: goal.is_recurring || false,
     });
     setShowForm(true);
   };
 
-  const handleDelete = async (goalId) => {
-    if (window.confirm('Are you sure you want to delete this goal?')) {
+  const handleDeleteClick = (goal) => {
+    setGoalToDelete(goal);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (goalToDelete) {
       try {
-        await wellnessAPI.deleteGoal(goalId);
+        await wellnessAPI.deleteGoal(goalToDelete.id);
         await fetchGoals();
+        setGoalToDelete(null);
       } catch (error) {
         console.error('Error deleting goal:', error);
       }
@@ -191,7 +233,7 @@ const Goals = () => {
                 placeholder="e.g., steps, mins, glasses"
               />
               <Input
-                label="Date"
+                label="Start Date"
                 type="date"
                 name="date"
                 value={formData.date}
@@ -199,6 +241,26 @@ const Goals = () => {
                 disabled={editingGoal !== null}
               />
             </div>
+            
+            {/* Recurring Goal Checkbox */}
+            <div className="goal-form__row goal-form__row--checkbox">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  name="is_recurring"
+                  checked={formData.is_recurring}
+                  onChange={handleChange}
+                />
+                <span>🔄 Repeat daily</span>
+              </label>
+              <span className="checkbox-hint">
+                {formData.is_recurring 
+                  ? 'This goal will automatically repeat every day' 
+                  : 'This is a one-time goal'
+                }
+              </span>
+            </div>
+
             <div className="goal-form__actions">
               {editingGoal && (
                 <Button type="button" variant="secondary" onClick={resetForm}>
@@ -220,7 +282,10 @@ const Goals = () => {
               <div className="goal-item__header">
                 <span className="goal-item__icon">{getGoalIcon(goal.goal_type)}</span>
                 <div className="goal-item__info">
-                  <h3 className="goal-item__title">{goal.title}</h3>
+                  <h3 className="goal-item__title">
+                    {goal.title}
+                    {goal.is_recurring && <span className="goal-item__recurring-badge">🔄</span>}
+                  </h3>
                   <span className="goal-item__date">{goal.date}</span>
                 </div>
                 <div className="goal-item__header-actions">
@@ -236,7 +301,7 @@ const Goals = () => {
                   </button>
                   <button 
                     className="goal-item__delete-btn"
-                    onClick={() => handleDelete(goal.id)}
+                    onClick={() => handleDeleteClick(goal)}
                     title="Delete goal"
                   >
                     🗑️
@@ -292,6 +357,33 @@ const Goals = () => {
           </Card>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setGoalToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Goal"
+        message={`Are you sure you want to delete "${goalToDelete?.title}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Update Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showUpdateModal}
+        onClose={() => setShowUpdateModal(false)}
+        onConfirm={confirmUpdate}
+        title="Update Goal"
+        message={`Are you sure you want to update "${editingGoal?.title}" with the new values?`}
+        confirmText="Update"
+        cancelText="Cancel"
+        variant="info"
+      />
     </div>
   );
 };

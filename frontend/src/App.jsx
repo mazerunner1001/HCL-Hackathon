@@ -13,7 +13,10 @@ import PatientDashboard from './pages/PatientDashboard';
 import ProviderDashboard from './pages/ProviderDashboard';
 import Profile from './pages/Profile';
 import Goals from './pages/Goals';
+import Reminders from './pages/Reminders';
 import HealthTopics from './pages/HealthTopics';
+import Services from './pages/Services';
+import Contact from './pages/Contact';
 
 import './index.css';
 
@@ -57,8 +60,8 @@ function AppRoutes() {
       <Route element={<PublicLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/health-topics" element={<HealthTopics />} />
-        <Route path="/services" element={<HealthTopics />} />
-        <Route path="/contact" element={<HealthTopics />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/contact" element={<Contact />} />
         <Route path="/privacy" element={<HealthTopics />} />
       </Route>
 
@@ -96,7 +99,7 @@ function AppRoutes() {
           path="/reminders"
           element={
             <ProtectedRoute allowedRoles={['patient']}>
-              <Goals />
+              <Reminders />
             </ProtectedRoute>
           }
         />
