@@ -4,6 +4,16 @@ A comprehensive healthcare portal designed to help patients achieve health goals
 
 ---
 
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Low Level Design](./docs/LOW_LEVEL_DESIGN.md) | Complete LLD with architecture, API design, data flows |
+| [ER Diagram](./docs/ER_DIAGRAM.md) | Entity Relationship diagrams (Mermaid) |
+| [Database Schema](./database.md) | MongoDB collections and field descriptions |
+
+---
+
 ## 📋 Problem Statement
 
 Develop a solution for a **Healthcare Wellness and Preventive Care Portal** that:
