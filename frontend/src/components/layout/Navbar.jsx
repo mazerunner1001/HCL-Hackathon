@@ -1,0 +1,63 @@
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import './Navbar.css';
+
+const Navbar = () => {
+  const { isAuthenticated, user, logout } = useAuth();
+  const location = useLocation();
+
+  const publicLinks = [
+    { path: '/', label: 'Home' },
+    { path: '/health-topics', label: 'Health Topics' },
+    { path: '/services', label: 'Services' },
+    { path: '/contact', label: 'Contact' },
+  ];
+
+  return (
+    <header className="navbar">
+      <div className="navbar__container">
+        <Link to="/" className="navbar__logo">
+          <span className="navbar__logo-icon">🏥</span>
+          <span className="navbar__logo-text">Healthcare Portal</span>
+        </Link>
+
+        <nav className="navbar__nav">
+          {publicLinks.map((link) => (
+            <Link
+              key={link.path}
+              to={link.path}
+              className={`navbar__link ${location.pathname === link.path ? 'navbar__link--active' : ''}`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="navbar__actions">
+          {isAuthenticated ? (
+            <>
+              <Link to="/dashboard" className="navbar__link">
+                Dashboard
+              </Link>
+              <div className="navbar__user">
+                <span className="navbar__user-name">
+                  {user?.first_name || 'User'}
+                </span>
+                <button onClick={logout} className="navbar__logout">
+                  Logout
+                </button>
+              </div>
+            </>
+          ) : (
+            <Link to="/login" className="navbar__login-btn">
+              Login
+            </Link>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Navbar;
+
